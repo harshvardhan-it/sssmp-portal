@@ -61,6 +61,10 @@ export async function receiveCashfreeWebhook(payload: RecordValue) {
     } else if (refundStatus === 'FAILED') {
       await PaymentTransaction.updateOne({ provider: 'CASHFREE', providerOrderId: orderId }, { $set: { refundStatus: 'FAILED' } });
     }
+    await CashfreeWebhookEvent.updateOne({ providerEventId: eventId }, {
+      $set: { processingStatus: 'PROCESSED', processedAt: new Date() },
+    });
+    return { duplicate: false };
   }
 
   try {
