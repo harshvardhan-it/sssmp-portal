@@ -24,7 +24,7 @@ function configuration() {
   };
 }
 
-async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+async function api<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string } = {}): Promise<T> {
   const config = configuration();
   const response = await fetch(`${config.baseUrl}${path}`, {
     method: init.method ?? 'GET',
@@ -34,6 +34,7 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
       'x-client-secret': config.secret,
       'x-api-version': API_VERSION,
       'x-request-id': crypto.randomUUID(),
+      ...(init.idempotencyKey ? { 'x-idempotency-key': init.idempotencyKey } : {}),
     },
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     signal: AbortSignal.timeout(15_000),
@@ -87,7 +88,7 @@ export async function createCashfreeOrder(input: {
     order_meta: { return_url: input.returnUrl, ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}) },
     order_note: 'SSSMP membership payment',
   };
-  const result = await api<CashfreeOrder>('/orders', { method: 'POST', body });
+  const result = await api<CashfreeOrder>('/orders', { method: 'POST', body, idempotencyKey: input.orderId });
   if (!result.order_id || !result.payment_session_id) throw new Error('Cashfree order response is incomplete');
   return result;
 }
@@ -106,6 +107,7 @@ export async function createCashfreeRefund(input: {
 }): Promise<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }> {
   return api<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }>(`/orders/${encodeURIComponent(input.orderId)}/refunds`, {
     method: 'POST',
+    idempotencyKey: input.refundId,
     body: {
       refund_id: input.refundId,
       refund_amount: Number((input.amountPaise / 100).toFixed(2)),
