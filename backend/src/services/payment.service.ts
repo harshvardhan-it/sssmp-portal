@@ -183,6 +183,7 @@ export async function createPaymentOrder(
       amountPaise: operation.amountPaise,
       currency: 'INR',
       provider: 'CASHFREE',
+      metadata: { cashfreeOrderIdempotencyKey: crypto.randomUUID() },
       internalReceipt: receipt(),
       status: 'CREATED',
       refundedAmountPaise: 0,
@@ -202,6 +203,7 @@ export async function createPaymentOrder(
       customerName: member.fullName,
       customerPhone: member.mobile,
       customerEmail: member.email,
+      idempotencyKey: String(payment.metadata?.cashfreeOrderIdempotencyKey),
       returnUrl: `${env.frontendUrl.replace(/\\/$/, '')}/member/payments?cashfree_order_id={order_id}`,
       notifyUrl: env.cashfreeWebhookUrl || undefined,
     });
@@ -323,14 +325,16 @@ export async function refundPayment(
   try {
     if (payment.provider === 'CASHFREE') {
       const refundRequestId = `rfnd_${crypto.randomUUID().replace(/-/g, '')}`;
+      const refundIdempotencyKey = crypto.randomUUID();
       await PaymentTransaction.updateOne(
         { _id: payment._id, refundStatus: 'PENDING' },
-        { $set: { 'metadata.cashfreeRefundRequestId': refundRequestId } },
+        { $set: { 'metadata.cashfreeRefundRequestId': refundRequestId, 'metadata.cashfreeRefundIdempotencyKey': refundIdempotencyKey } },
       ).exec();
       const refund = await createCashfreeRefund({
         orderId: payment.providerOrderId!,
         amountPaise,
         refundId: refundRequestId,
+        idempotencyKey: refundIdempotencyKey,
         reason: reason.trim(),
       });
       let updated;
