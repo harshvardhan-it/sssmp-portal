@@ -314,7 +314,7 @@ Configure these variables in the backend runtime (Render or local root `.env`):
 - `CASHFREE_SECRET_KEY`: corresponding Cashfree secret key; backend only, never expose to Vite.
 - `CASHFREE_ENVIRONMENT=sandbox` for testing, or `production` after approval.
 - `CASHFREE_WEBHOOK_URL=https://<backend-host>/api/v1/webhooks/cashfree`.
-- `FRONTEND_URL=https://<frontend-host>` so Cashfree returns to `/member/payments?cashfree_order_id={order_id}`.
+- `FRONTEND_URL=https://<frontend-host>` so Cashfree returns to `/#/member/payments?cashfree_order_id={order_id}` (the portal uses HashRouter).
 
 Cashfree uses the PG API version `2025-01-01`, server-side order creation, the hosted Cashfree JS v3 checkout, order-payment fetch for authoritative verification, HMAC-SHA256/Base64 webhook signature verification over timestamp + raw request body, and Cashfree refund APIs. POST order and refund requests use Cashfree idempotency keys.
 
