@@ -12,6 +12,7 @@ import adminLocationRoutes from './routes/admin-location.routes';
 import membershipRoutes from './routes/membership.routes';
 import paymentRoutes from './routes/payment.routes';
 import webhookRoutes from './routes/webhook.routes';
+import cashfreeWebhookRoutes from './routes/cashfree-webhook.routes';
 import adminPaymentRoutes from './routes/admin-payment.routes';
 
 const app = express();
@@ -19,6 +20,7 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin.split(',').map((value) => value.trim()) }));
 app.use(`${env.apiPrefix}/webhooks/razorpay`, express.raw({ type: 'application/json', limit: '256kb' }), webhookRoutes);
+app.use(`${env.apiPrefix}/webhooks/cashfree`, express.raw({ type: 'application/json', limit: '256kb' }), cashfreeWebhookRoutes);
 app.use(express.json({ limit: '1mb' }));
 app.use(`${env.apiPrefix}/health`, healthRoutes);
 app.use(`${env.apiPrefix}/auth`, authRoutes);
