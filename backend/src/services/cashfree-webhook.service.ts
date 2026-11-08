@@ -12,7 +12,7 @@ function string(value: unknown): string | undefined {
   return typeof value === 'string' && value.length ? value : undefined;
 }
 
-export async function receiveCashfreeWebhook(rawBody: Buffer, payload: RecordValue, signature: string, timestamp: string) {
+export async function receiveCashfreeWebhook(payload: RecordValue) {
   const order = object(object(payload.data).order);
   const payment = object(object(payload.data).payment);
   const orderId = string(order.order_id);
