@@ -100,6 +100,7 @@ async function auditPayment(
     | 'PAYMENT_CAPTURED'
     | 'PAYMENT_FAILED'
     | 'PAYMENT_VERIFICATION_FAILED'
+    | 'PAYMENT_REFUND_INITIATED'
     | 'PAYMENT_REFUNDED'
     | 'PAYMENT_PARTIALLY_REFUNDED',
   paymentId: Types.ObjectId,
@@ -323,7 +324,7 @@ export async function refundPayment(
     if (payment.provider === 'CASHFREE') {
       const refund = await createCashfreeRefund({ orderId: payment.providerOrderId!, amountPaise, refundId: `rfnd_${crypto.randomUUID().replace(/-/g, '')}`, reason: reason.trim() });
       const updated = await PaymentTransaction.findByIdAndUpdate(payment._id, { $set: { refundStatus: 'PENDING', providerRefundId: refund.cf_refund_id ?? refund.refund_id } }, { new: true }).exec();
-      await auditPayment('PAYMENT_REFUNDED', payment._id, { amountPaise, reason: reason.trim(), provider: 'CASHFREE', refundStatus: refund.refund_status });
+      await auditPayment('PAYMENT_REFUND_INITIATED', payment._id, { amountPaise, reason: reason.trim(), provider: 'CASHFREE', refundStatus: refund.refund_status });
       return safePayment(updated!);
     }
     const refund = await createProviderRefund(payment.providerPaymentId, amountPaise, { reason: reason.trim() });
@@ -346,10 +347,12 @@ export async function refundPayment(
     );
     return safePayment(updated!);
   } catch (error) {
-    await PaymentTransaction.updateOne(
-      { _id: payment._id, refundStatus: 'PENDING' },
-      { $set: { refundStatus: 'FAILED' } },
-    ).exec();
+    if (payment.provider !== 'CASHFREE') {
+      await PaymentTransaction.updateOne(
+        { _id: payment._id, refundStatus: 'PENDING' },
+        { $set: { refundStatus: 'FAILED' } },
+      ).exec();
+    }
     throw error;
   }
 }
