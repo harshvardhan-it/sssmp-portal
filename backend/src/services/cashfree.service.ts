@@ -9,6 +9,9 @@ type JsonRecord = Record<string, unknown>;
 const API_VERSION = '2025-01-01';
 
 function configuration() {
+  if (!['sandbox', 'production'].includes(env.cashfreeEnvironment)) {
+    throw new CashfreeConfigurationError('CASHFREE_ENVIRONMENT must be sandbox or production');
+  }
   if (!env.cashfreeAppId || !env.cashfreeSecretKey) {
     throw new CashfreeConfigurationError('Cashfree credentials are not configured');
   }
@@ -101,7 +104,7 @@ export async function createCashfreeRefund(input: {
   refundId: string;
   reason: string;
 }): Promise<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }> {
-  return api(`/orders/${encodeURIComponent(input.orderId)}/refunds`, {
+  return api<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }>(`/orders/${encodeURIComponent(input.orderId)}/refunds`, {
     method: 'POST',
     body: {
       refund_id: input.refundId,
