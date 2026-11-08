@@ -333,7 +333,21 @@ export async function refundPayment(
         refundId: refundRequestId,
         reason: reason.trim(),
       });
-      const updated = await PaymentTransaction.findById(payment._id).exec();
+      let updated;
+      if (refund.refund_status === 'SUCCESS') {
+        const total = Math.min(payment.amountPaise, payment.refundedAmountPaise + Math.round(refund.refund_amount * 100));
+        updated = await PaymentTransaction.findByIdAndUpdate(payment._id, {
+          $set: {
+            refundedAmountPaise: total,
+            refundStatus: total === payment.amountPaise ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+            ...(refund.cf_refund_id ? { providerRefundId: refund.cf_refund_id } : {}),
+          },
+        }, { new: true }).exec();
+      } else if (refund.refund_status === 'FAILED') {
+        updated = await PaymentTransaction.findByIdAndUpdate(payment._id, { $set: { refundStatus: 'FAILED' } }, { new: true }).exec();
+      } else {
+        updated = await PaymentTransaction.findById(payment._id).exec();
+      }
       await auditPayment('PAYMENT_REFUND_INITIATED', payment._id, {
         amountPaise, reason: reason.trim(), provider: 'CASHFREE',
         refundStatus: refund.refund_status,
