@@ -302,3 +302,36 @@ provider refund ID. A successful refund does not automatically suspend a
 membership because that policy has not been defined; operators must use the
 existing membership suspension workflow where required. Refund webhook
 reconciliation and tax/GST receipt rendering remain follow-up work.
+
+
+## Current payment provider: Cashfree PG
+
+New membership and renewal payments use Cashfree Payment Gateway in sandbox mode by default. The previous Razorpay adapter and webhook endpoint remain only to reconcile historical or already-created Razorpay transactions; new orders are never created with Razorpay.
+
+Configure these variables in the backend runtime (Render or local root `.env`):
+
+- `CASHFREE_APP_ID`: Cashfree sandbox App ID (use production credentials only after merchant activation).
+- `CASHFREE_SECRET_KEY`: corresponding Cashfree secret key; backend only, never expose to Vite.
+- `CASHFREE_ENVIRONMENT=sandbox` for testing, or `production` after approval.
+- `CASHFREE_WEBHOOK_URL=https://<backend-host>/api/v1/webhooks/cashfree`.
+- `FRONTEND_URL=https://<frontend-host>` so Cashfree returns to `/member/payments?cashfree_order_id={order_id}`.
+
+Cashfree uses the PG API version `2025-01-01`, server-side order creation, the hosted Cashfree JS v3 checkout, order-payment fetch for authoritative verification, HMAC-SHA256/Base64 webhook signature verification over timestamp + raw request body, and Cashfree refund APIs. POST order and refund requests use Cashfree idempotency keys.
+
+Member payment endpoints:
+
+- `POST /api/v1/payments/orders` with exactly one approved `membershipId` or `renewalRequestId`; returns `paymentSessionId`, `mode`, and the local payment record.
+- `POST /api/v1/payments/verify` with `cashfreeOrderId`; backend fetches Cashfree payments and checks order ID, INR currency, and the server-owned amount before activation.
+- `GET /api/v1/payments/history`
+- `GET /api/v1/payments/:paymentId/receipt`
+
+Webhook:
+
+- `POST /api/v1/webhooks/cashfree` (configure this exact URL in Cashfree dashboard).
+- The route must receive the original raw JSON body before Express JSON parsing.
+- Payment success is reconciled by fetching payment records from Cashfree; browser redirects alone never activate a membership.
+- Refund status notifications update refund totals only after Cashfree reports a successful refund.
+
+Existing Razorpay transactions and their webhook inbox are retained for historical compatibility. Do not delete or bulk-convert these records during deployment. Any legacy Razorpay transaction still in an active state must be reconciled before a new Cashfree attempt is created for the same membership operation.
+
+Cashfree sandbox must be tested end-to-end before switching `CASHFREE_ENVIRONMENT` to `production`. Configure the Cashfree webhook in the dashboard, test UPI and at least one failed/cancelled flow, verify payment history and receipts, and verify a refund status callback. A live production rollout must wait for Cashfree merchant/product activation and production credentials.
