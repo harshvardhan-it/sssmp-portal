@@ -269,10 +269,12 @@ System-generated registration and expiration audit records use the reserved
 all-zero ObjectId actor and metadata identifying the system source; they do not
 pretend to be administrator actions.
 
-## Phase 6 Razorpay Test Mode
+## Legacy Phase 6 Razorpay Test Mode (historical)
 
-Payment integration is test-mode only. Configure the empty Razorpay placeholders
-from the repository `.env.example`; production keys are rejected by the adapter.
+This section documents the retained Razorpay adapter for historical and in-flight
+transactions only. New membership and renewal orders use Cashfree as described
+in the Current payment provider section below. Configure Razorpay credentials
+only if an existing Razorpay transaction must be reconciled or refunded.
 Amounts are derived from the approved membership or renewal plan and sent as
 integer paise (`OFFICE_BEARER` 100000, `YEARLY` 12000). The client cannot provide
 an amount, currency, member ID, or payment status.
