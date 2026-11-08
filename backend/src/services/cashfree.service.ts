@@ -73,6 +73,7 @@ export async function createCashfreeOrder(input: {
   customerPhone: string;
   customerEmail?: string;
   returnUrl: string;
+  idempotencyKey: string;
   notifyUrl?: string;
 }): Promise<CashfreeOrder> {
   const body = {
@@ -88,7 +89,7 @@ export async function createCashfreeOrder(input: {
     order_meta: { return_url: input.returnUrl, ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}) },
     order_note: 'SSSMP membership payment',
   };
-  const result = await api<CashfreeOrder>('/orders', { method: 'POST', body, idempotencyKey: input.orderId });
+  const result = await api<CashfreeOrder>('/orders', { method: 'POST', body, idempotencyKey: input.idempotencyKey });
   if (!result.order_id || !result.payment_session_id) throw new Error('Cashfree order response is incomplete');
   return result;
 }
@@ -103,11 +104,12 @@ export async function createCashfreeRefund(input: {
   orderId: string;
   amountPaise: number;
   refundId: string;
+  idempotencyKey: string;
   reason: string;
 }): Promise<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }> {
   return api<{ cf_refund_id?: string; refund_id?: string; refund_amount: number; refund_status: string }>(`/orders/${encodeURIComponent(input.orderId)}/refunds`, {
     method: 'POST',
-    idempotencyKey: input.refundId,
+    idempotencyKey: input.idempotencyKey,
     body: {
       refund_id: input.refundId,
       refund_amount: Number((input.amountPaise / 100).toFixed(2)),
