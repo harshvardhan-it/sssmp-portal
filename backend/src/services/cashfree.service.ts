@@ -69,7 +69,7 @@ export async function createCashfreeOrder(input: {
   customerPhone: string;
   customerEmail?: string;
   returnUrl: string;
-  notifyUrl: string;
+  notifyUrl?: string;
 }): Promise<CashfreeOrder> {
   const body = {
     order_id: input.orderId,
@@ -81,7 +81,7 @@ export async function createCashfreeOrder(input: {
       customer_phone: input.customerPhone,
       ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
     },
-    order_meta: { return_url: input.returnUrl, notify_url: input.notifyUrl },
+    order_meta: { return_url: input.returnUrl, ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}) },
     order_note: 'SSSMP membership payment',
   };
   const result = await api<CashfreeOrder>('/orders', { method: 'POST', body });
