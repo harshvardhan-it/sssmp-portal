@@ -42,7 +42,7 @@ export async function receiveCashfreeWebhook(payload: RecordValue) {
     const refund = object(object(payload.data).refund);
     const refundStatus = string(refund.refund_status);
     const refundAmount = typeof refund.refund_amount === 'number' ? Math.round(refund.refund_amount * 100) : 0;
-    const refundId = string(refund.cf_refund_id) ?? string(refund.refund_id);
+    const refundId = string(refund.refund_id) ?? string(refund.cf_refund_id);
     if (refundStatus === 'SUCCESS' && refundAmount > 0) {
       const transaction = await PaymentTransaction.findOne({ provider: 'CASHFREE', providerOrderId: orderId }).exec();
       if (transaction) {
