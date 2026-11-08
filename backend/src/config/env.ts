@@ -23,4 +23,9 @@ export const env = {
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
   razorpayEnvironment: process.env.RAZORPAY_ENVIRONMENT ?? 'test',
+  cashfreeAppId: process.env.CASHFREE_APP_ID ?? '',
+  cashfreeSecretKey: process.env.CASHFREE_SECRET_KEY ?? '',
+  cashfreeEnvironment: process.env.CASHFREE_ENVIRONMENT ?? 'sandbox',
+  cashfreeWebhookUrl: process.env.CASHFREE_WEBHOOK_URL ?? '',
+  frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',
 };
