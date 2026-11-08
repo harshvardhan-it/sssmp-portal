@@ -17,9 +17,7 @@ const orderSchema = z.object({
   renewalRequestId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
 }).strict();
 const verifySchema = z.object({
-  razorpayOrderId: z.string().min(1).max(100),
-  razorpayPaymentId: z.string().min(1).max(100),
-  razorpaySignature: z.string().regex(/^[a-f\d]{64}$/i),
+  cashfreeOrderId: z.string().min(3).max(50),
 }).strict();
 
 function routeParam(value: string | string[]): string {
