@@ -15,7 +15,7 @@ import {
   verifyPayment,
   type PaymentRecord,
 } from '../../lib/api';
-import { loadRazorpayCheckout, openRazorpayCheckout } from '../../lib/razorpay';
+import { loadCashfreeCheckout } from '../../lib/cashfree';
 
 type MembershipRecord = {
   id: string;
@@ -118,6 +118,23 @@ export const MemberPaymentsPage: React.FC = () => {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const cashfreeOrderId = new URLSearchParams(window.location.search).get('cashfree_order_id');
+    if (!cashfreeOrderId || !isBackendAuthenticated) return;
+    setNotice({ type: 'info', message: t('payments.verifying', 'Cashfree payment is being verified. Please wait.') });
+    void verifyPayment({ cashfreeOrderId }).then(async () => {
+      setNotice({ type: 'success', message: t('payments.success', 'Payment verified successfully. Your membership status has been updated.') });
+      await refresh();
+    }).catch((error) => {
+      setNotice({ type: 'info', message: error instanceof ApiRequestError ? error.message : t('payments.pending', 'Payment status is not confirmed yet. Please refresh shortly.') });
+      void refresh();
+    }).finally(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('cashfree_order_id');
+      window.history.replaceState({}, '', url.toString());
+    });
+  }, [isBackendAuthenticated, refresh, t]);
+
   const pendingRenewal = useMemo(
     () => renewals.find((renewal) => renewal.status === 'PENDING' || renewal.status === 'APPROVED'),
     [renewals],
@@ -134,52 +151,18 @@ export const MemberPaymentsPage: React.FC = () => {
         ...(operation.membershipId ? { membershipId: operation.membershipId } : {}),
         ...(operation.renewalRequestId ? { renewalRequestId: operation.renewalRequestId } : {}),
       });
-      await loadRazorpayCheckout();
-      const checkout = openRazorpayCheckout({
-        key: order.keyId,
-        amount: order.payment.amountPaise,
-        currency: order.payment.currency,
-        name: 'SSSMP Portal',
-        description: operation.label,
-        order_id: order.payment.providerOrderId ?? '',
-        handler: async (response) => {
-          setNotice({ type: 'info', message: t('payments.verifying', 'भुगतान सत्यापन लंबित है। कृपया इस पेज को बंद न करें।') });
-          try {
-            await verifyPayment({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            setNotice({ type: 'success', message: t('payments.success', 'भुगतान सत्यापित हो गया है। सदस्यता स्थिति शीघ्र अपडेट होगी।') });
-            await refresh();
-          } catch (error) {
-            setNotice({
-              type: 'info',
-              message: error instanceof ApiRequestError
-                ? `${error.message} ${t('payments.refreshHint', 'वेबहुक की पुष्टि के बाद स्थिति अपने-आप अपडेट हो सकती है।')}`
-                : t('payments.pending', 'भुगतान प्राप्त हुआ हो सकता है। स्थिति सत्यापित की जा रही है।'),
-            });
-            window.setTimeout(() => void refresh(), 3000);
-          } finally {
-            setBusy(null);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setBusy(null);
-            setNotice({ type: 'info', message: t('payments.cancelled', 'भुगतान रद्द कर दिया गया। सदस्यता सक्रिय नहीं हुई है।') });
-          },
-        },
-      });
-      checkout.on?.('payment.failed', () => {
-        setBusy(null);
-        setNotice({ type: 'error', message: t('payments.failed', 'भुगतान विफल हुआ। सदस्यता सक्रिय नहीं हुई है।') });
+      await loadCashfreeCheckout();
+      if (!window.Cashfree) throw new Error('Cashfree Checkout failed to initialize');
+      const cashfree = window.Cashfree({ mode: order.mode });
+      await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
+        redirectTarget: '_self',
       });
     } catch (error) {
       setBusy(null);
       setNotice({
         type: 'error',
-        message: error instanceof ApiRequestError ? error.message : t('payments.checkoutError', 'चेकआउट शुरू नहीं हो सका। कृपया पुनः प्रयास करें।'),
+        message: error instanceof ApiRequestError ? error.message : t('payments.checkoutError', 'Unable to start Cashfree checkout. Please try again.'),
       });
     }
   };
