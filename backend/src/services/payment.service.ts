@@ -322,9 +322,22 @@ export async function refundPayment(
   if (!claimed) throw new PaymentError('PAYMENT_CONFLICT', 'Another refund is already being processed');
   try {
     if (payment.provider === 'CASHFREE') {
-      const refund = await createCashfreeRefund({ orderId: payment.providerOrderId!, amountPaise, refundId: `rfnd_${crypto.randomUUID().replace(/-/g, '')}`, reason: reason.trim() });
-      const updated = await PaymentTransaction.findByIdAndUpdate(payment._id, { $set: { refundStatus: 'PENDING', providerRefundId: refund.cf_refund_id ?? refund.refund_id } }, { new: true }).exec();
-      await auditPayment('PAYMENT_REFUND_INITIATED', payment._id, { amountPaise, reason: reason.trim(), provider: 'CASHFREE', refundStatus: refund.refund_status });
+      const refundRequestId = `rfnd_${crypto.randomUUID().replace(/-/g, '')}`;
+      await PaymentTransaction.updateOne(
+        { _id: payment._id, refundStatus: 'PENDING' },
+        { $set: { 'metadata.cashfreeRefundRequestId': refundRequestId } },
+      ).exec();
+      const refund = await createCashfreeRefund({
+        orderId: payment.providerOrderId!,
+        amountPaise,
+        refundId: refundRequestId,
+        reason: reason.trim(),
+      });
+      const updated = await PaymentTransaction.findById(payment._id).exec();
+      await auditPayment('PAYMENT_REFUND_INITIATED', payment._id, {
+        amountPaise, reason: reason.trim(), provider: 'CASHFREE',
+        refundStatus: refund.refund_status,
+      });
       return safePayment(updated!);
     }
     const refund = await createProviderRefund(payment.providerPaymentId, amountPaise, { reason: reason.trim() });
