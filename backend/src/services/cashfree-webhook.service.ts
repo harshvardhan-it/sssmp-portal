@@ -41,7 +41,8 @@ export async function receiveCashfreeWebhook(payload: RecordValue) {
   if (eventType.toUpperCase().includes('REFUND')) {
     const refund = object(object(payload.data).refund);
     const refundStatus = string(refund.refund_status);
-    const refundAmount = typeof refund.refund_amount === 'number' ? Math.round(refund.refund_amount * 100) : 0;
+    const refundAmountValue = typeof refund.refund_amount === 'number' || typeof refund.refund_amount === 'string' ? Number(refund.refund_amount) : 0;
+    const refundAmount = Number.isFinite(refundAmountValue) ? Math.round(refundAmountValue * 100) : 0;
     const refundId = string(refund.refund_id) ?? string(refund.cf_refund_id);
     if (refundStatus === 'SUCCESS' && refundAmount > 0) {
       const transaction = await PaymentTransaction.findOne({ provider: 'CASHFREE', providerOrderId: orderId }).exec();
@@ -90,7 +91,7 @@ export async function reconcileCashfreeOrder(orderId: string) {
     item.order_id === orderId &&
     item.payment_status === 'SUCCESS' &&
     item.payment_currency === payment.currency &&
-    Math.round(item.payment_amount * 100) === payment.amountPaise,
+    Math.round(Number(item.payment_amount) * 100) === payment.amountPaise,
   );
   if (success) {
     if (mongoose.connection.readyState !== 1) throw new Error('Cashfree reconciliation requires a database transaction');
