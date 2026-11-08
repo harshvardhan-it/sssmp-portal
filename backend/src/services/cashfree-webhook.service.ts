@@ -38,6 +38,31 @@ export async function receiveCashfreeWebhook(payload: RecordValue) {
     } else throw error;
   }
 
+  if (eventType.toUpperCase().includes('REFUND')) {
+    const refund = object(object(payload.data).refund);
+    const refundStatus = string(refund.refund_status);
+    const refundAmount = typeof refund.refund_amount === 'number' ? Math.round(refund.refund_amount * 100) : 0;
+    const refundId = string(refund.cf_refund_id) ?? string(refund.refund_id);
+    if (refundStatus === 'SUCCESS' && refundAmount > 0) {
+      const transaction = await PaymentTransaction.findOne({ provider: 'CASHFREE', providerOrderId: orderId }).exec();
+      if (transaction) {
+        const alreadyRecorded = transaction.providerRefundId === refundId;
+        if (!alreadyRecorded) {
+          const total = Math.min(transaction.amountPaise, transaction.refundedAmountPaise + refundAmount);
+          await PaymentTransaction.updateOne({ _id: transaction._id }, {
+            $set: {
+              refundedAmountPaise: total,
+              refundStatus: total === transaction.amountPaise ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+              providerRefundId: refundId,
+            },
+          });
+        }
+      }
+    } else if (refundStatus === 'FAILED') {
+      await PaymentTransaction.updateOne({ provider: 'CASHFREE', providerOrderId: orderId }, { $set: { refundStatus: 'FAILED' } });
+    }
+  }
+
   try {
     await reconcileCashfreeOrder(orderId);
     await CashfreeWebhookEvent.updateOne({ providerEventId: eventId }, {
