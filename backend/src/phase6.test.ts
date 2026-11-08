@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AuditLog, PaymentTransaction, RazorpayWebhookEvent } from './models';
+import { AuditLog, CashfreeWebhookEvent, PaymentTransaction, RazorpayWebhookEvent } from './models';
 
 test('payment transactions enforce provider and active-operation uniqueness indexes', () => {
   const indexes = PaymentTransaction.schema.indexes();
@@ -18,7 +18,18 @@ test('payment transactions enforce provider and active-operation uniqueness inde
   ));
 });
 
-test('webhook inbox enforces one durable record per provider event', () => {
+test('payment transactions accept Cashfree while retaining legacy Razorpay records', () => {
+  const provider = PaymentTransaction.schema.path('provider');
+  assert.deepEqual(provider.options.enum, ['RAZORPAY', 'CASHFREE']);
+});
+
+test('Cashfree webhook inbox enforces one durable record per provider event', () => {
+  assert.ok(CashfreeWebhookEvent.schema.indexes().some(([fields, options]) =>
+    fields.providerEventId === 1 && options?.unique === true,
+  ));
+});
+
+test('legacy Razorpay webhook inbox remains readable for historical events', () => {
   assert.ok(RazorpayWebhookEvent.schema.indexes().some(([fields, options]) =>
     fields.providerEventId === 1 && options?.unique === true,
   ));
