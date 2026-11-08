@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --navy-primary: #102F50;
+    --navy-dark: #0B2038;
+    --navy-light: #1A365D;
+    --green-primary: #049B70;
+    --green-dark: #037d5a;
+    --green-light: #E6F7F2;
+    --red-primary: #E52528;
+    --red-dark: #C41D20;
+    --red-light: #FDF2F2;
+    --bg-cream: #FAF9F5;
+  }
+
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Noto Sans Devanagari', 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #FAF9F5;
+    color: #1E293B;
+  }
+}
+
+/* Subtle dotted background pattern like RSSMP reference */
+.pattern-dots {
+  background-image: radial-gradient(rgba(16, 47, 80, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.pattern-dots-subtle {
+  background-image: radial-gradient(rgba(16, 47, 80, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Watermark book / decorative icon like reference screenshot */
+.watermark-book {
+  position: relative;
+}
+.watermark-book::before {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  right: 15px;
+  width: 140px;
+  height: 90px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'%3E%3C/path%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
