@@ -340,7 +340,7 @@ export async function refundPayment(
           $set: {
             refundedAmountPaise: total,
             refundStatus: total === payment.amountPaise ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
-            ...(refund.cf_refund_id ? { providerRefundId: refund.cf_refund_id } : {}),
+            ...((refund.refund_id ?? refund.cf_refund_id) ? { providerRefundId: refund.refund_id ?? refund.cf_refund_id } : {}),
           },
         }, { new: true }).exec();
       } else if (refund.refund_status === 'FAILED') {
