@@ -14,7 +14,7 @@ export interface PaymentTransaction {
   plan: SubscriptionPlan;
   amountPaise: number;
   currency: 'INR';
-  provider: 'RAZORPAY';
+  provider: 'RAZORPAY' | 'CASHFREE';
   providerOrderId?: string;
   providerPaymentId?: string;
   internalReceipt: string;
@@ -40,7 +40,7 @@ const paymentTransactionSchema = new Schema<PaymentTransaction>(
     plan: { type: String, enum: ['OFFICE_BEARER', 'YEARLY'], required: true },
     amountPaise: { type: Number, required: true, min: 1 },
     currency: { type: String, enum: ['INR'], required: true, default: 'INR' },
-    provider: { type: String, enum: ['RAZORPAY'], required: true, default: 'RAZORPAY' },
+    provider: { type: String, enum: ['RAZORPAY', 'CASHFREE'], required: true, default: 'RAZORPAY' },
     providerOrderId: { type: String, sparse: true, unique: true, index: true },
     providerPaymentId: { type: String, sparse: true, unique: true, index: true },
     internalReceipt: { type: String, required: true, unique: true, index: true },
