@@ -204,7 +204,7 @@ export async function createPaymentOrder(
       customerPhone: member.mobile,
       customerEmail: member.email,
       idempotencyKey: String(payment.metadata?.cashfreeOrderIdempotencyKey),
-      returnUrl: `${env.frontendUrl.replace(/\\/$/, '')}/member/payments?cashfree_order_id={order_id}`,
+      returnUrl: `${env.frontendUrl.replace(/\\/$/, '')}/#/member/payments?cashfree_order_id={order_id}`,
       notifyUrl: env.cashfreeWebhookUrl || undefined,
     });
     payment.provider = 'CASHFREE';
