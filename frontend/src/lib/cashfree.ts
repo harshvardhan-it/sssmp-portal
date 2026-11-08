@@ -26,7 +26,10 @@ export function loadCashfreeCheckout(): Promise<void> {
     const script = document.createElement('script');
     script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
     script.async = true;
-    script.onload = () => window.Cashfree ? resolve() : reject(new Error('Cashfree Checkout failed to initialize'));
+    script.onload = () => {
+      if (window.Cashfree) resolve();
+      else { scriptPromise = undefined; reject(new Error('Cashfree Checkout failed to initialize')); }
+    };
     script.onerror = () => {
       scriptPromise = undefined;
       reject(new Error('Unable to load Cashfree Checkout'));
