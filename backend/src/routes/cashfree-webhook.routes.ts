@@ -16,7 +16,7 @@ router.post('/', async (request, response, next) => {
       return;
     }
     const payload = JSON.parse(request.body.toString('utf8')) as Record<string, unknown>;
-    await receiveCashfreeWebhook(request.body, payload, signature, timestamp);
+    await receiveCashfreeWebhook(payload);
     response.status(200).json({ success: true, data: { received: true } });
   } catch (error) { next(error); }
 });
