@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Clock3, CreditCard, ExternalLink, Loader2, LogIn, Printer, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -75,6 +75,8 @@ function statusLabel(status: string, language: string) {
 export const MemberPaymentsPage: React.FC = () => {
   const { t, language } = useLanguage();
   const { currentMember, isBackendAuthenticated, isAuthLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [membership, setMembership] = useState<MembershipRecord | null>(null);
   const [renewals, setRenewals] = useState<RenewalRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -119,7 +121,7 @@ export const MemberPaymentsPage: React.FC = () => {
   }, [refresh]);
 
   useEffect(() => {
-    const cashfreeOrderId = new URLSearchParams(window.location.search).get('cashfree_order_id');
+    const cashfreeOrderId = new URLSearchParams(location.search).get('cashfree_order_id');
     if (!cashfreeOrderId || !isBackendAuthenticated) return;
     setNotice({ type: 'info', message: t('payments.verifying', 'Cashfree payment is being verified. Please wait.') });
     void verifyPayment({ cashfreeOrderId }).then(async () => {
@@ -129,11 +131,9 @@ export const MemberPaymentsPage: React.FC = () => {
       setNotice({ type: 'info', message: error instanceof ApiRequestError ? error.message : t('payments.pending', 'Payment status is not confirmed yet. Please refresh shortly.') });
       void refresh();
     }).finally(() => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('cashfree_order_id');
-      window.history.replaceState({}, '', url.toString());
+      navigate({ pathname: location.pathname }, { replace: true });
     });
-  }, [isBackendAuthenticated, refresh, t]);
+  }, [isBackendAuthenticated, location.pathname, location.search, navigate, refresh, t]);
 
   const pendingRenewal = useMemo(
     () => renewals.find((renewal) => renewal.status === 'PENDING' || renewal.status === 'APPROVED'),
