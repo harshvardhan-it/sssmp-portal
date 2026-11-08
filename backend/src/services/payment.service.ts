@@ -12,11 +12,14 @@ import {
   verifyCheckoutSignature,
   type RazorpayPayment,
 } from './razorpay.service';
+import { createCashfreeOrder, createCashfreeRefund, cashfreeMode } from './cashfree.service';
+import { reconcileCashfreeOrder } from './cashfree-webhook.service';
 import {
   activateMembershipFromCapturedPayment,
   activateRenewalFromCapturedPayment,
 } from './membership.service';
 import { AdminScope, assertScopeId, ScopeError } from './admin-scope.service';
+import { env } from '../config/env';
 
 const ACTIVE_PAYMENT_STATUSES = ['CREATED', 'ORDER_CREATED', 'AUTHORIZED', 'CAPTURED'] as const;
 
@@ -76,7 +79,7 @@ function safePayment(payment: {
     plan: payment.plan,
     amountPaise: payment.amountPaise,
     currency: payment.currency,
-    provider: 'RAZORPAY',
+    provider: payment.provider,
     providerOrderId: payment.providerOrderId,
     providerPaymentId: payment.providerPaymentId,
     internalReceipt: payment.internalReceipt,
@@ -167,10 +170,12 @@ export async function createPaymentOrder(
     status: { $in: ACTIVE_PAYMENT_STATUSES },
   }).exec();
   if (existing) {
-    if (!existing.providerOrderId) {
-      throw new PaymentError('PAYMENT_CONFLICT', 'A payment attempt is pending reconciliation');
+    if (existing.provider !== 'CASHFREE' || !existing.providerOrderId) {
+      throw new PaymentError('PAYMENT_CONFLICT', 'A legacy Razorpay payment attempt must be reconciled before a new Cashfree attempt can be created');
     }
-    return { keyId: publicKeyId(), payment: safePayment(existing) };
+    const sessionId = existing.metadata?.cashfreePaymentSessionId;
+    if (typeof sessionId !== 'string') throw new PaymentError('PAYMENT_CONFLICT', 'Cashfree payment session is unavailable; contact support');
+    return { paymentSessionId: sessionId, mode: cashfreeMode(), payment: safePayment(existing) };
   }
 
   let payment: PaymentTransactionDocument;
@@ -182,7 +187,7 @@ export async function createPaymentOrder(
       plan: operation.plan,
       amountPaise: operation.amountPaise,
       currency: 'INR',
-      provider: 'RAZORPAY',
+      provider: 'CASHFREE',
       internalReceipt: receipt(),
       status: 'CREATED',
       refundedAmountPaise: 0,
@@ -195,23 +200,27 @@ export async function createPaymentOrder(
   }
 
   try {
-    const order = await createProviderOrder({
+    const order = await createCashfreeOrder({
+      orderId: payment.internalReceipt,
       amountPaise: payment.amountPaise,
-      receipt: payment.internalReceipt,
-      notes: {
-        payment_transaction_id: payment.id,
-        membership_id: payment.membershipId.toString(),
-        ...(payment.renewalRequestId ? { renewal_request_id: payment.renewalRequestId.toString() } : {}),
-      },
+      customerId: member._id.toString(),
+      customerName: member.fullName,
+      customerPhone: member.mobile,
+      customerEmail: member.email,
+      returnUrl: `${env.frontendUrl.replace(/\\/$/, '')}/member/payments?cashfree_order_id={order_id}`,
+      notifyUrl: env.cashfreeWebhookUrl || undefined,
     });
-    payment.providerOrderId = order.id;
+    payment.provider = 'CASHFREE';
+    payment.providerOrderId = order.order_id;
+    payment.metadata = { ...(payment.metadata ?? {}), cashfreePaymentSessionId: order.payment_session_id };
     payment.status = 'ORDER_CREATED';
     await payment.save();
     await auditPayment('PAYMENT_ORDER_CREATED', payment._id, {
-      orderId: order.id,
+      orderId: order.order_id,
       amountPaise: payment.amountPaise,
+      provider: 'CASHFREE',
     });
-    return { keyId: publicKeyId(), payment: safePayment(payment) };
+    return { paymentSessionId: order.payment_session_id, mode: cashfreeMode(), payment: safePayment(payment) };
   } catch (error) {
     payment.status = 'FAILED';
     payment.failedAt = new Date();
@@ -221,99 +230,29 @@ export async function createPaymentOrder(
   }
 }
 
-async function assertCapturedPayment(
-  payment: PaymentTransactionDocument | null,
-  input: { orderId: string; paymentId: string; signature: string },
-): Promise<RazorpayPayment> {
-  if (!payment || !payment.providerOrderId || payment.providerOrderId !== input.orderId) {
-    throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Payment order does not match the stored transaction');
-  }
-  if (!verifyCheckoutSignature(payment.providerOrderId, input.paymentId, input.signature)) {
-    throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Payment signature is invalid');
-  }
-  const providerPayment = await fetchProviderPayment(input.paymentId);
-  if (
-    providerPayment.order_id !== payment.providerOrderId ||
-    providerPayment.amount !== payment.amountPaise ||
-    providerPayment.currency !== payment.currency ||
-    providerPayment.status !== 'captured'
-  ) {
-    throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Payment was not captured for this transaction');
-  }
-  return providerPayment;
-}
-
 export async function verifyPayment(
   actor: AdminScope,
-  input: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string },
+  input: { cashfreeOrderId: string },
 ) {
   const member = await memberForActor(actor);
   const payment = await PaymentTransaction.findOne({
-    providerOrderId: input.razorpayOrderId,
+    provider: 'CASHFREE',
+    providerOrderId: input.cashfreeOrderId,
     memberId: member._id,
   }).exec();
-  if (!payment) throw new PaymentError('PAYMENT_NOT_FOUND', 'Payment transaction not found');
-  if (payment.status === 'CAPTURED') return safePayment(payment);
-
-  let providerPayment: RazorpayPayment;
-  try {
-    providerPayment = await assertCapturedPayment(payment, {
-      orderId: input.razorpayOrderId,
-      paymentId: input.razorpayPaymentId,
-      signature: input.razorpaySignature,
-    });
-  } catch (error) {
-    await auditPayment('PAYMENT_VERIFICATION_FAILED', payment._id, { orderId: payment.providerOrderId ?? null });
-    if (error instanceof PaymentError) throw error;
-    throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Payment could not be verified');
+  if (!payment) throw new PaymentError('PAYMENT_NOT_FOUND', 'Cashfree payment transaction not found');
+  if (payment.status !== 'CAPTURED') {
+    try {
+      await reconcileCashfreeOrder(input.cashfreeOrderId);
+    } catch {
+      throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Cashfree payment could not yet be verified. Please refresh shortly.');
+    }
   }
-
-  if (mongoose.connection.readyState !== 1) {
-    throw new PaymentError('PAYMENT_TRANSACTION_REQUIRED', 'Payment verification requires a database transaction');
+  const verified = await PaymentTransaction.findById(payment._id).exec();
+  if (!verified || verified.status !== 'CAPTURED') {
+    throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Cashfree has not confirmed a successful payment');
   }
-  const session = await mongoose.startSession();
-  try {
-    let result;
-    await session.withTransaction(async () => {
-      const current = await PaymentTransaction.findOneAndUpdate(
-        { _id: payment._id, status: { $ne: 'CAPTURED' } },
-        {
-          $set: {
-            providerPaymentId: providerPayment.id,
-            status: 'CAPTURED',
-            capturedAt: new Date(),
-          },
-        },
-        { new: true, session },
-      ).exec();
-      if (!current) {
-        result = await PaymentTransaction.findById(payment._id).session(session).exec();
-        return;
-      }
-      if (current.renewalRequestId) {
-        await activateRenewalFromCapturedPayment({
-          renewalId: current.renewalRequestId,
-          paymentId: providerPayment.id,
-          capturedAt: current.capturedAt as Date,
-        }, session);
-      } else {
-        await activateMembershipFromCapturedPayment({
-          membershipId: current.membershipId,
-          paymentId: providerPayment.id,
-          capturedAt: current.capturedAt as Date,
-        }, session);
-      }
-      await auditPayment('PAYMENT_CAPTURED', current._id, {
-        paymentId: providerPayment.id,
-        amountPaise: current.amountPaise,
-      }, session);
-      result = current;
-    });
-    if (!result) throw new PaymentError('PAYMENT_VERIFICATION_FAILED', 'Payment verification did not complete');
-    return safePayment(result);
-  } finally {
-    await session.endSession();
-  }
+  return safePayment(verified);
 }
 
 export async function listOwnPayments(actor: AdminScope) {
@@ -387,6 +326,12 @@ export async function refundPayment(
   ).exec();
   if (!claimed) throw new PaymentError('PAYMENT_CONFLICT', 'Another refund is already being processed');
   try {
+    if (payment.provider === 'CASHFREE') {
+      const refund = await createCashfreeRefund({ orderId: payment.providerOrderId!, amountPaise, refundId: `rfnd_${crypto.randomUUID().replace(/-/g, '')}`, reason: reason.trim() });
+      const updated = await PaymentTransaction.findByIdAndUpdate(payment._id, { $set: { refundStatus: 'PENDING', providerRefundId: refund.cf_refund_id ?? refund.refund_id } }, { new: true }).exec();
+      await auditPayment('PAYMENT_REFUNDED', payment._id, { amountPaise, reason: reason.trim(), provider: 'CASHFREE', refundStatus: refund.refund_status });
+      return safePayment(updated!);
+    }
     const refund = await createProviderRefund(payment.providerPaymentId, amountPaise, { reason: reason.trim() });
     const total = payment.refundedAmountPaise + refund.amount;
     const updated = await PaymentTransaction.findByIdAndUpdate(
