@@ -129,7 +129,7 @@ export function verifyCashfreeWebhookSignature(
   timestamp: string,
   secret = env.cashfreeSecretKey,
 ): boolean {
-  if (!secret || !signature || !timestamp || !/^\\d+$/.test(timestamp)) return false;
+  if (!secret || !signature || !timestamp || ![...timestamp].every((char) => char >= '0' && char <= '9')) return false;
   try {
     const expected = crypto.createHmac('sha256', secret)
       .update(timestamp + rawBody.toString('utf8'), 'utf8')
