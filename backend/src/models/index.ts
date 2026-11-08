@@ -13,6 +13,7 @@ export type { RenewalRequestDocument, RenewalRequest as RenewalRequestEntity } f
 export { PaymentTransaction } from './payment-transaction.model';
 export type { PaymentTransactionDocument, PaymentTransaction as PaymentTransactionEntity } from './payment-transaction.model';
 export { RazorpayWebhookEvent } from './razorpay-webhook-event.model';
+export { CashfreeWebhookEvent } from './cashfree-webhook-event.model';
 export type { RazorpayWebhookEventDocument, RazorpayWebhookEvent as RazorpayWebhookEventEntity } from './razorpay-webhook-event.model';
 export { User } from './user.model';
 export type { UserDocument, User as UserEntity, UserModel } from './user.model';
