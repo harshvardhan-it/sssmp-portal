@@ -55,6 +55,7 @@ function safePayment(payment: {
   plan: string;
   amountPaise: number;
   currency: string;
+  provider: 'RAZORPAY' | 'CASHFREE';
   providerOrderId?: string;
   providerPaymentId?: string;
   internalReceipt: string;
