@@ -13,8 +13,8 @@
     "import:provisional-blocks": "tsx src/scripts/import-provisional-blocks.ts",
     "seed:mp-districts": "tsx src/scripts/seed-mp-districts.ts",
     "bootstrap:super-admin": "tsx src/scripts/bootstrap-super-admin.ts",
-    "expire:memberships": "tsx src/scripts/expire-memberships.ts"
-    ,"report:membership-lifecycle": "tsx src/scripts/report-membership-lifecycle.ts"
+    "expire:memberships": "tsx src/scripts/expire-memberships.ts",
+    "report:membership-lifecycle": "tsx src/scripts/report-membership-lifecycle.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -36,6 +36,6 @@
     "@types/supertest": "^7.2.1",
     "supertest": "^7.3.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "5.9.3"
   }
 }
