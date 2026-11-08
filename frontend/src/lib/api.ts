@@ -90,6 +90,7 @@ export interface PaymentRecord {
   plan: 'OFFICE_BEARER' | 'YEARLY';
   amountPaise: number;
   currency: 'INR';
+  provider: 'RAZORPAY' | 'CASHFREE';
   providerOrderId?: string;
   providerPaymentId?: string;
   internalReceipt: string;
@@ -192,18 +193,14 @@ export async function fetchPaymentReceipt(paymentId: string) {
 }
 
 export async function createPaymentOrder(input: { membershipId?: string; renewalRequestId?: string }) {
-  const response = await request<{ success: true; data: { keyId: string; payment: PaymentRecord } }>('/payments/orders', {
+  const response = await request<{ success: true; data: { paymentSessionId: string; mode: 'sandbox' | 'production'; payment: PaymentRecord } }>('/payments/orders', {
     method: 'POST',
     body: JSON.stringify(input),
   });
   return response.data;
 }
 
-export async function verifyPayment(input: {
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  razorpaySignature: string;
-}) {
+export async function verifyPayment(input: { cashfreeOrderId: string }) {
   const response = await request<{ success: true; data: PaymentRecord }>('/payments/verify', {
     method: 'POST',
     body: JSON.stringify(input),
