@@ -1,12 +1,11 @@
 import React from 'react';
-import { BookOpen, HeartHandshake, GraduationCap } from 'lucide-react';
+import { BookOpen, GraduationCap } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export const OrganizationValues: React.FC = () => {
   const { t } = useLanguage();
   const informationCards = [
     { title: t('organizationInfo.purposeTitle'), subtitle: t('organizationInfo.purposeSubtitle'), description: t('organizationInfo.purposeDesc'), icon: BookOpen, borderColor: 'border-t-4 border-t-[#102F50]', iconBg: 'bg-blue-50 text-[#102F50]' },
-    { title: t('organizationInfo.specialTitle'), subtitle: t('organizationInfo.specialSubtitle'), description: t('organizationInfo.specialDesc'), icon: HeartHandshake, borderColor: 'border-t-4 border-t-[#049B70]', iconBg: 'bg-emerald-50 text-[#049B70]' },
     { title: t('organizationInfo.eligibilityTitle'), subtitle: t('organizationInfo.eligibilitySubtitle'), description: t('organizationInfo.eligibilityDesc'), icon: GraduationCap, borderColor: 'border-t-4 border-t-amber-600', iconBg: 'bg-amber-50 text-amber-700' },
   ];
   return (
