@@ -86,6 +86,9 @@ export interface LeaderItem {
   bioHi: string;
   bioEn: string;
   image?: string;
+  facebookUrl?: string;
+  highlightsHi: string[];
+  highlightsEn: string[];
 }
 
 export interface GalleryItem {
