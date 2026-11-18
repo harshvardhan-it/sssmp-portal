@@ -29,8 +29,17 @@ export const LeadershipPage: React.FC = () => {
               className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs hover:shadow-md transition flex flex-col"
             >
               <div className="flex items-start gap-4 mb-5">
-                <div className="w-16 h-16 rounded-2xl bg-[#102F50]/10 flex items-center justify-center text-[#102F50] border border-[#102F50]/20 shrink-0">
-                  <UserRound className="w-8 h-8" />
+                <div className="w-20 h-20 rounded-2xl bg-[#102F50]/10 flex items-center justify-center text-[#102F50] border border-[#102F50]/20 shrink-0 overflow-hidden">
+                  {leader.id === 'rakesh-dubey' ? (
+                    <img
+                      src="/rakesh-dubey.png"
+                      alt={language === 'hi' ? leader.nameHi : leader.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <UserRound className="w-8 h-8" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold text-slate-900 font-serif">
