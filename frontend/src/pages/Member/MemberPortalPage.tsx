@@ -55,6 +55,125 @@ export function MemberProfilePage() {
   return <Shell><h1 className="text-2xl font-bold text-[#102F50]">{label('मेरी प्रोफ़ाइल', 'My profile', language)}</h1><form onSubmit={submit} className="mt-6 grid gap-4 rounded-xl border bg-white p-6 md:grid-cols-2"><MemberLocationSelector districtId={form.district ?? ''} blockId={form.block ?? ''} onChange={(field, value) => setForm((previous) => ({ ...previous, [field]: value }))} language={language} />{Object.entries(form).filter(([key]) => key !== 'district' && key !== 'block').map(([key, value]) => <label className="text-sm" key={key}>{profileFieldText(key, language)}<input value={value} onChange={(event) => setForm((previous) => ({ ...previous, [key]: event.target.value }))} type={key === 'dob' ? 'date' : 'text'} className="mt-1 w-full rounded border p-2" /></label>)}<button className="inline-flex justify-center gap-2 rounded bg-[#049B70] px-4 py-2 text-white md:col-span-2"><Save size={17} />{label('सहेजें', 'Save', language)}</button>{message && <p className="md:col-span-2" role="status">{message}</p>}</form></Shell>;
 }
 
-export function MemberCardPage() { const { currentMember }=useAuth(); const {language}=useLanguage(); const [membership,setMembership]=useState<Record<string,unknown>|null>(null); useEffect(()=>{fetchMembership().then(setMembership).catch(()=>setMembership(null))},[]); if(!currentMember)return <Navigate to="/login" replace/>; const status=String(membership?.status??currentMember.status); const plan=membership?.plan==='OFFICE_BEARER'?label('पदाधिकारी सदस्यता','Office Bearer Membership',language):label('वार्षिक सदस्यता','Yearly Subscription',language); return <Shell><div className="flex justify-between"><h1 className="text-2xl font-bold text-[#102F50]">{label('डिजिटल सदस्यता कार्ड','Digital membership card',language)}</h1>{status==='ACTIVE'&&<button onClick={()=>window.print()} className="print:hidden inline-flex gap-2"><Printer size={18}/>{label('प्रिंट','Print',language)}</button>}</div>{status==='ACTIVE'?<div className="max-w-xl mt-6 bg-white border-4 border-[#102F50] rounded-xl overflow-hidden shadow-lg print:shadow-none"><div className="bg-[#102F50] text-white p-5 flex items-center gap-3"><img src="/logo.jpg" alt={label('संगठन का चिह्न','Organization logo',language)} className="h-14 w-14 rounded-full object-cover"/><div><h2 className="font-bold">शासकीय शिक्षक संगठन मध्यप्रदेश</h2><p>Shasakiya Shikshak Sangathan Madhya Pradesh</p></div></div><div className="p-6 space-y-3"><p><b>{label('नाम','Name',language)}:</b> {currentMember.fullName}</p><p><b>{label('सदस्यता आईडी','Membership ID',language)}:</b> {String(membership?.membershipNumber??'—')}</p><p><b>{label('योजना','Plan',language)}:</b> {plan}</p><p><b>{label('जिला','District',language)}:</b> {currentMember.district}</p>{currentMember.block&&<p><b>{label('शिक्षा ब्लॉक','Education Block',language)}:</b> {currentMember.block}</p>}<p><b>{label('स्थिति','Status',language)}:</b> <span className="text-emerald-700">{statusText(status,language)}</span></p><p><b>{label('जारी/वैधता','Issue / validity',language)}:</b> {date(membership?.validityStart,language)} — {date(membership?.validityEnd,language)}</p></div></div>:<div className="mt-6 max-w-xl rounded-xl border border-amber-200 bg-amber-50 p-6"><h2 className="font-bold text-[#102F50]">{statusText(status,language)}</h2><p className="mt-2 text-sm text-slate-700">{status==='PENDING'||status==='APPROVED'?label('सदस्यता भुगतान सत्यापन के बाद सक्रिय होगी। सक्रिय होने पर कार्ड यहाँ उपलब्ध होगा।','Membership activates after payment verification. Your card will be available here once active.',language):label('इस स्थिति में सक्रिय सदस्यता कार्ड उपलब्ध नहीं है।','An active membership card is not available for this status.',language)}</p><Link to="/member/payments" className="mt-4 inline-flex text-sm font-bold text-[#049B70]">{label('सदस्यता / भुगतान देखें','View membership / payment',language)} →</Link></div>}</Shell> }
+export function MemberCardPage() {
+  const { currentMember } = useAuth();
+  const { language } = useLanguage();
+  const [membership, setMembership] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMembership().then(setMembership).catch(() => setMembership(null)).finally(() => setLoading(false));
+  }, []);
+
+  if (!currentMember) return <Navigate to="/login" replace />;
+
+  const status = String(membership?.status ?? currentMember.status);
+  const active = status === 'ACTIVE';
+  const plan = membership?.plan === 'OFFICE_BEARER'
+    ? label('पदाधिकारी सदस्यता', 'Office Bearer Membership', language)
+    : label('वार्षिक सदस्यता', 'Annual Membership', language);
+  const issuedOn = date(membership?.validityStart ?? membership?.activatedAt, language);
+  const validUntil = date(membership?.validityEnd, language);
+
+  return (
+    <Shell>
+      <style>{`
+        @media print {
+          @page { size: A4 portrait; margin: 18mm; }
+          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body * { visibility: hidden !important; }
+          .membership-print-area, .membership-print-area * { visibility: visible !important; }
+          .membership-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; }
+          .membership-card { box-shadow: none !important; break-inside: avoid; }
+        }
+      `}</style>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div>
+          <h1 className="text-2xl font-bold text-[#102F50]">{label('डिजिटल सदस्यता कार्ड', 'Digital Membership Card', language)}</h1>
+          <p className="mt-1 text-sm text-slate-500">{label('भुगतान सत्यापन के बाद जारी डिजिटल पहचान पत्र', 'Digital identity card issued after verified payment', language)}</p>
+        </div>
+        {active && <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg bg-[#102F50] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0B2038]">
+          <Printer size={17} />{label('प्रिंट / PDF सेव करें', 'Print / Save as PDF', language)}
+        </button>}
+      </div>
+
+      {loading ? (
+        <div className="mt-8 rounded-xl border bg-white p-8 text-center text-slate-500">{label('सदस्यता विवरण लोड हो रहा है…', 'Loading membership details…', language)}</div>
+      ) : active ? (
+        <div className="membership-print-area mt-7">
+          <article className="membership-card mx-auto max-w-2xl overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-xl">
+            <header className="relative overflow-hidden bg-[#102F50] px-6 py-5 text-white">
+              <div className="absolute -right-10 -top-16 h-48 w-48 rounded-full border-[22px] border-white/5" />
+              <div className="relative flex items-center gap-4">
+                <img src="/logo.jpg" alt={label('संगठन का लोगो', 'Organization logo', language)} className="h-16 w-16 shrink-0 rounded-full border-2 border-white/80 bg-white object-contain p-1" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">{label('आधिकारिक सदस्य पहचान पत्र', 'Official Membership Identity Card', language)}</p>
+                  <h2 className="mt-1 text-lg font-extrabold leading-snug">शासकीय शिक्षक संगठन मध्यप्रदेश</h2>
+                  <p className="text-xs text-slate-200">Shasakiya Shikshak Sangathan Madhya Pradesh</p>
+                </div>
+              </div>
+            </header>
+
+            <div className="p-6 sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label('सदस्य का नाम', 'Member Name', language)}</p>
+                  <h3 className="mt-1 text-2xl font-extrabold text-[#102F50]">{currentMember.fullName}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{label('पंजीकरण संख्या', 'Registration No.', language)}: {currentMember.registrationNumber || '—'}</p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600" />{label('सक्रिय सदस्य', 'ACTIVE MEMBER', language)}
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+                {[
+                  [label('सदस्यता क्रमांक', 'Membership ID', language), String(membership?.membershipNumber ?? '—')],
+                  [label('पिता / पति का नाम', "Father's / Husband's Name", language), currentMember.fatherHusbandName || '—'],
+                  [label('पदनाम', 'Designation', language), currentMember.designation || '—'],
+                  [label('विद्यालय / संस्था', 'School / Institution', language), currentMember.schoolName || '—'],
+                  [label('कर्मचारी आईडी', 'Employee ID', language), currentMember.employeeId || '—'],
+                  [label('मोबाइल नंबर', 'Mobile Number', language), currentMember.mobile || '—'],
+                  [label('जिला', 'District', language), currentMember.district || '—'],
+                  [label('विकासखंड', 'Block', language), currentMember.block || '—'],
+                  [label('सदस्यता योजना', 'Membership Plan', language), plan],
+                  [label('जारी होने की तिथि', 'Issued On', language), issuedOn],
+                  [label('वैधता समाप्ति', 'Valid Until', language), validUntil],
+                ].map(([heading, value]) => (
+                  <div key={heading} className="min-w-0 border-b border-slate-100 pb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{heading}</p>
+                    <p className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-slate-300 pt-4">
+                <div>
+                  <p className="text-xs font-bold text-[#102F50]">{label('शिक्षक एकता • शिक्षक सम्मान', 'Teacher Unity • Teacher Dignity', language)}</p>
+                  <p className="mt-1 text-[10px] text-slate-500">{label('यह कार्ड संगठन के डिजिटल सदस्यता रिकॉर्ड के आधार पर जारी किया गया है।', 'Issued against the organization’s digital membership record.', language)}</p>
+                </div>
+                <p className="rounded-md bg-slate-100 px-3 py-2 text-[10px] font-bold tracking-wider text-slate-600">SSSMP • {new Date().getFullYear()}</p>
+              </footer>
+            </div>
+          </article>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-xs text-slate-500 print:hidden">
+            {label('PDF के लिए “प्रिंट / PDF सेव करें” दबाएँ और प्रिंटर में “Save as PDF” चुनें।', 'To download a PDF, choose “Save as PDF” in the print destination.', language)}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-7 max-w-xl rounded-xl border border-amber-200 bg-amber-50 p-6">
+          <h2 className="font-bold text-[#102F50]">{statusText(status, language)}</h2>
+          <p className="mt-2 text-sm text-slate-700">
+            {status === 'PENDING' || status === 'APPROVED'
+              ? label('सदस्यता भुगतान सत्यापन के बाद सक्रिय होगी। सक्रिय होने पर कार्ड यहाँ उपलब्ध होगा।', 'Membership activates after payment verification. Your card will be available here once active.', language)
+              : label('इस स्थिति में सक्रिय सदस्यता कार्ड उपलब्ध नहीं है।', 'An active membership card is not available for this status.', language)}
+          </p>
+          <Link to="/member/payments" className="mt-4 inline-flex text-sm font-bold text-[#049B70]">{label('सदस्यता / भुगतान देखें', 'View membership / payment', language)} →</Link>
+        </div>
+      )}
+    </Shell>
+  );
+}
 
 export function MemberSettingsPage(){const {language}=useLanguage();const {logoutMember}=useAuth();const nav=useNavigate();const [current,setCurrent]=useState('');const [next,setNext]=useState('');const [confirm,setConfirm]=useState('');const [message,setMessage]=useState('');const submit=async(e:React.FormEvent)=>{e.preventDefault();if(next.length<8||next!==confirm){setMessage(label('पासवर्ड कम से कम 8 अक्षरों का और समान होना चाहिए','Password must be 8+ characters and match',language));return}try{await changePassword(current,next);setMessage(label('पासवर्ड बदला गया। कृपया दोबारा लॉगिन करें।','Password changed. Please log in again.',language));logoutMember();setTimeout(()=>nav('/login'),500)}catch(error){setMessage(error instanceof ApiRequestError?error.message:label('पासवर्ड नहीं बदला जा सका।','Unable to change password.',language))}};return <Shell><h1 className="text-2xl font-bold text-[#102F50]">{label('खाता सेटिंग्स','Account settings',language)}</h1><form onSubmit={submit} className="max-w-lg mt-6 bg-white border rounded-xl p-6 space-y-4"><label>{label('वर्तमान पासवर्ड','Current password',language)}<input required type="password" autoComplete="current-password" value={current} onChange={e=>setCurrent(e.target.value)} className="mt-1 w-full border rounded p-2"/></label><label>{label('नया पासवर्ड','New password',language)}<input required type="password" autoComplete="new-password" value={next} onChange={e=>setNext(e.target.value)} className="mt-1 w-full border rounded p-2"/></label><label>{label('पुष्टि','Confirm password',language)}<input required type="password" autoComplete="new-password" value={confirm} onChange={e=>setConfirm(e.target.value)} className="mt-1 w-full border rounded p-2"/></label><button className="bg-[#102F50] text-white rounded px-4 py-2 inline-flex gap-2"><KeyRound size={17}/>{label('पासवर्ड बदलें','Change password',language)}</button>{message&&<p role="status">{message}</p>}</form></Shell>}
