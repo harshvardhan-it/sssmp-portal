@@ -79,7 +79,6 @@
     },
     "plansTitle": "Membership Plans",
     "plansSubtitle": "Membership plans for organizational empowerment and digital membership",
-    "constitutionNote": "* Only two official membership options are defined under the Sangathan Constitution",
     "processTitle": "Membership Registration Process",
     "processSubtitle": "Simple and organized process to obtain official digital membership",
     "objectivesTitle": "Organization Mission & Commitment",
@@ -481,16 +480,14 @@
     "ctaBtn": "Register for Membership"
   },
   "leadership": {
-    "badge": "Organizational Leadership Structure",
-    "title": "Organization Leadership & Executive Bodies",
-    "subtitle": "Strategic policy makers and executive coordinators across State, Divisional, and District levels of SSSMP.",
+    "badge": "Key Organisational Leadership",
+    "title": "Organisation Leadership",
+    "subtitle": "Meet the key leaders representing the organisation and teachers’ interests.",
     "constitutionNote": "* Structural roles and constitutional duties as defined under the Sangathan Constitution.",
-    "tabAll": "All Executive",
-    "tabState": "State Level Body",
-    "tabDivision": "Divisional Coordinators",
-    "levelState": "State Level",
-    "levelDivision": "Divisional Level",
-    "authorizedBadge": "Authorized Official"
+    "authorizedBadge": "Based on public reporting",
+    "contributions": "Key Contributions",
+    "facebookProfile": "View Facebook Profile",
+    "publicRecordNote": "Biography based on publicly available news reports."
   },
   "noticesPage": {
     "badge": "Official Notice Board & Circulars",
